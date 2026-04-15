@@ -12,6 +12,7 @@ use App\Mail\NewMessageMail;
 use App\Services\WhatsAppService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
+use App\Jobs\CheckMessageReplyJob;
 use App\Events\MessageSent;
 
 class MessageController extends Controller
@@ -40,6 +41,9 @@ class MessageController extends Controller
         $conversation->update([
             'last_message_at' => now(),
         ]);
+
+        // Dispatch Google Calendar & WA reminder check (1 minute delay)
+        CheckMessageReplyJob::dispatch($message)->delay(now()->addMinute());
 
         // Reward the sender for replying
         LecturerScore::adjustXP($userId, 5, 'Membalas pesan di Forum');
