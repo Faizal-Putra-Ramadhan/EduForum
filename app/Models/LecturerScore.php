@@ -6,8 +6,6 @@ use Illuminate\Database\Eloquent\Model;
 
 class LecturerScore extends Model
 {
-    protected $connection = 'mysql';
-
     protected $fillable = [
         'user_id', 'total_xp', 'total_replies', 'avg_response_hours', 'badge'
     ];
