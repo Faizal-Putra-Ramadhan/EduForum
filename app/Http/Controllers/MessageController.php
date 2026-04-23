@@ -17,18 +17,79 @@ use App\Events\MessageSent;
 
 class MessageController extends Controller
 {
-    public function store(Request $request, $conversationId)
+    public function store(Request $request, $conversationId, \App\Services\ReminderService $reminderService)
     {
         $request->validate([
             'content' => 'required|string|max:5000',
         ]);
 
         $conversation = Conversation::with('conversationUsers.user')->findOrFail($conversationId);
-        $userId = Auth::id();
+        $user = Auth::user();
+        $userId = $user->id;
         
         // Security check
         if (!$conversation->conversationUsers->pluck('user_id')->contains($userId)) {
             abort(403);
+        }
+
+        // Logic 3x24h Cooldown (Only if student is sending to lecturer)
+        $isStudent = $user->role === 'mahasiswa';
+        if ($isStudent) {
+            if ($conversation->type === 'private') {
+                $hasLecturer = $conversation->conversationUsers->contains(fn($cu) => $cu->user && $cu->user->role === 'dosen');
+                
+                if ($hasLecturer) {
+                    $lastMessage = Message::where('conversation_id', $conversationId)->latest()->first();
+                    if ($lastMessage && $lastMessage->sender_id === $userId && $lastMessage->created_at > now()->subDays(3)) {
+                        return response()->json([
+                            'status' => 'error', 
+                            'is_blocked' => true,
+                            'message' => 'Harap tunggu balasan dosen (maksimal 3x24 jam) sebelum mengirim pesan baru.'
+                        ], 422);
+                    }
+                }
+            } else if ($conversation->type === 'group') {
+                $contentLower = strtolower($request->input('content'));
+                
+                // Fetch recent messages efficiently in memory
+                $recentMessages = Message::where('conversation_id', $conversationId)
+                    ->where('sender_id', $userId)
+                    ->where('created_at', '>', now()->subDays(3))
+                    ->orderBy('created_at', 'desc')
+                    ->get();
+
+                foreach ($conversation->conversationUsers as $cu) {
+                    $target = $cu->user;
+                    if ($target && $target->role === 'dosen') {
+                        $mentionTag = '@' . strtolower(str_replace(' ', '', $target->name));
+                        
+                        if (str_contains($contentLower, $mentionTag)) {
+                            $lastMentionAt = null;
+                            foreach ($recentMessages as $msg) {
+                                if (str_contains(strtolower($msg->content), $mentionTag)) {
+                                    $lastMentionAt = $msg->created_at;
+                                    break;
+                                }
+                            }
+
+                            if ($lastMentionAt) {
+                                $lecturerReply = Message::where('conversation_id', $conversationId)
+                                    ->where('sender_id', $target->id)
+                                    ->where('created_at', '>', $lastMentionAt)
+                                    ->first();
+
+                                if (!$lecturerReply) {
+                                    return response()->json([
+                                        'status' => 'error', 
+                                        'is_blocked' => true,
+                                        'message' => 'Harap tunggu balasan 3x24 jam dari ' . $target->name . ' sebelum me-mention beliau kembali di grup ini.'
+                                    ], 422);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         $message = Message::create([
@@ -42,43 +103,68 @@ class MessageController extends Controller
             'last_message_at' => now(),
         ]);
 
-        // Dispatch Google Calendar & WA reminder check (1 minute delay)
-        CheckMessageReplyJob::dispatch($message)->delay(now()->addMinute());
+        // Reward the sender
+        LecturerScore::adjustXP($userId, 5, 'Mengirim pesan di Forum');
 
-        // Reward the sender for replying
-        LecturerScore::adjustXP($userId, 5, 'Membalas pesan di Forum');
-
-        // Notification & Penalty Logic (ONLY for Private/DM)
-        \Illuminate\Support\Facades\Log::info('[EMAIL DEBUG] conv type: ' . $conversation->type . ' | conv id: ' . $conversation->id);
-        if ($conversation->type === 'private') {
-            $recipientMapping = $conversation->conversationUsers->where('user_id', '!=', $userId)->first();
-            $recipient = $recipientMapping ? $recipientMapping->user : null;
-            \Illuminate\Support\Facades\Log::info('[EMAIL DEBUG] recipient: ' . ($recipient ? $recipient->email : 'NULL'));
-            
-            if ($recipient) {
-                $unreadCount = Message::where('conversation_id', $conversationId)
-                    ->where('sender_id', $userId)
-                    ->where('is_read', false)
-                    ->count();
-                \Illuminate\Support\Facades\Log::info('[EMAIL DEBUG] unreadCount: ' . $unreadCount);
-
-                if ($unreadCount < 3) {
+        // SMART SYNC & REMINDERS
+        if ($isStudent) {
+            // Student to Lecturer?
+            if ($conversation->type === 'private') {
+                $lecturerMapping = $conversation->conversationUsers->where('user_id', '!=', $userId)->first();
+                $lecturer = $lecturerMapping ? $lecturerMapping->user : null;
+                if ($lecturer && $lecturer->role === 'dosen') {
+                    $reminderService->upsertReminder($lecturer, $user);
+                    
+                    // Auto-Email Notification
                     try {
-                        \Illuminate\Support\Facades\Log::info('[EMAIL DEBUG] dispatching Mail::later() to ' . $recipient->email);
-                        Mail::to($recipient->email)->later(
-                            now()->addMinute(),
-                            new NewMessageMail(Auth::user(), $message->content)
-                        );
-                        \Illuminate\Support\Facades\Log::info('[EMAIL DEBUG] Mail::later() dispatched successfully. Jobs in table: ' . \Illuminate\Support\Facades\DB::table('jobs')->count());
+                        $actionUrl = url('/forum/' . $conversation->id);
+                        Mail::to($lecturer->email)->send(new NewMessageMail($user, $request->input('content'), 'Private Consultation', $actionUrl));
                     } catch (\Exception $e) {
-                        \Illuminate\Support\Facades\Log::error('[EMAIL DEBUG] Email dispatch failed: ' . $e->getMessage() . ' | Trace: ' . $e->getTraceAsString());
+                        \Log::error('Gagal mengirim email notifikasi ke dosen (Private): ' . $e->getMessage());
                     }
-                } elseif ($unreadCount == 3) {
-                    $waService = new WhatsAppService();
-                    $waMsg = "Halo {$recipient->name}, ada pesan baru dari " . Auth::user()->name . " di EduForum yang belum Anda baca. Silakan balas segera!";
-                    $waService->sendMessage($recipient->phone, $waMsg);
-
-                    LecturerScore::adjustXP($recipient->id, -5, 'Penalti: 3 pesan belum dibalas');
+                }
+            } else {
+                // Group Chat: Check for tag @namadosen
+                $content = $request->input('content');
+                foreach ($conversation->conversationUsers as $cu) {
+                    $target = $cu->user;
+                    if ($target->role === 'dosen' && str_contains(strtolower($content), '@' . strtolower(str_replace(' ', '', $target->name)))) {
+                        $reminderService->upsertReminder($target, $user, $conversation->name);
+                        
+                        // Auto-Email Notification
+                        try {
+                            $actionUrl = url('/forum/' . $conversation->id);
+                            Mail::to($target->email)->send(new NewMessageMail($user, $content, $conversation->name, $actionUrl));
+                        } catch (\Exception $e) {
+                            \Log::error('Gagal mengirim email notifikasi ke dosen (Group): ' . $e->getMessage());
+                        }
+                    }
+                }
+            }
+        } else {
+            // Lecturer to Student(s)?
+            // If lecturer replies, remove the reminder
+            if ($conversation->type === 'private') {
+                $studentMapping = $conversation->conversationUsers->where('user_id', '!=', $userId)->first();
+                $student = $studentMapping ? $studentMapping->user : null;
+                if ($student) {
+                    $reminderService->removeReminder($user, $student);
+                }
+            } else {
+                // In group, if lecturer speaks, they might be replying to everyone or specific ones.
+                // Simple: when lecturer speaks in group, we clear their active reminder for that group's unreplied list?
+                // The requirement doesn't specify group reply as clearly. 
+                // Let's assume any message from lecturer clears their reminder for that conversation context.
+                $reminder = \App\Models\LecturerReminder::where('lecturer_id', $userId)->first();
+                if ($reminder) {
+                    // Logic to find which students in this group were waiting
+                    $studentsInGroup = $conversation->conversationUsers->pluck('user_id')->toArray();
+                    $unreplied = $reminder->unreplied_students ?? [];
+                    foreach ($unreplied as $sId) {
+                        if (in_array($sId, $studentsInGroup)) {
+                            $reminderService->removeReminder($user, User::find($sId));
+                        }
+                    }
                 }
             }
         }
@@ -92,8 +178,22 @@ class MessageController extends Controller
         $message->load('sender');
         broadcast(new MessageSent($message))->toOthers();
 
+        // Calculate if blocked after this message (Student to Lecturer)
+        $isBlockedNow = false;
+        if ($isStudent && $conversation->type === 'private') {
+            $hasLecturer = $conversation->conversationUsers->contains(fn($cu) => $cu->user && $cu->user->role === 'dosen');
+            if ($hasLecturer) {
+                // Since student just sent a message, they are now blocked for 3x24h until reply
+                $isBlockedNow = true;
+            }
+        }
+
         if ($request->expectsJson()) {
-            return response()->json(['status' => 'Message sent!', 'message' => $message]);
+            return response()->json([
+                'status' => 'Message sent!', 
+                'message' => $message,
+                'is_blocked' => $isBlockedNow
+            ]);
         }
 
         return back()->with('status', 'Message sent!');

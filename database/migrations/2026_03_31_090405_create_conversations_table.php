@@ -11,8 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::connection('sqlite_messages')->dropIfExists('conversations');
-        Schema::connection('sqlite_messages')->create('conversations', function (Blueprint $table) {
+        Schema::dropIfExists('conversations');
+        Schema::create('conversations', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('participant_1_id');
             $table->unsignedBigInteger('participant_2_id');
@@ -26,6 +26,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::connection('sqlite_messages')->dropIfExists('conversations');
+        Schema::dropIfExists('conversations');
     }
 };

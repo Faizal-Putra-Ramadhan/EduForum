@@ -19,6 +19,7 @@ class GoogleCalendarService
         $this->client->setClientId(config('services.google.client_id'));
         $this->client->setClientSecret(config('services.google.client_secret'));
         $this->client->setRedirectUri(config('services.google.redirect'));
+        $this->client->addScope(Calendar::CALENDAR);
         $this->client->addScope(Calendar::CALENDAR_EVENTS);
         $this->client->addScope('https://www.googleapis.com/auth/userinfo.profile');
         $this->client->setAccessType('offline');
@@ -93,10 +94,52 @@ class GoogleCalendarService
         $calendarId = 'primary';
         try {
             $event = $service->events->insert($calendarId, $event);
-            return $event->htmlLink;
+            return $event->id; // Return ID instead of link for backend tracking
         } catch (\Exception $e) {
             Log::error('Google Calendar Event Creation Failed: ' . $e->getMessage());
             return null;
+        }
+    }
+
+    /**
+     * Update an existing calendar event.
+     */
+    public function updateEvent(User $user, $eventId, $summary, $description)
+    {
+        if (!$this->setAccessTokenForUser($user)) return null;
+
+        $service = new Calendar($this->client);
+        $calendarId = 'primary';
+
+        try {
+            $event = $service->events->get($calendarId, $eventId);
+            $event->setSummary($summary);
+            $event->setDescription($description);
+
+            $updatedEvent = $service->events->update($calendarId, $eventId, $event);
+            return $updatedEvent->id;
+        } catch (\Exception $e) {
+            Log::error('Google Calendar Event Update Failed: ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Delete a calendar event.
+     */
+    public function deleteEvent(User $user, $eventId)
+    {
+        if (!$this->setAccessTokenForUser($user)) return false;
+
+        $service = new Calendar($this->client);
+        $calendarId = 'primary';
+
+        try {
+            $service->events->delete($calendarId, $eventId);
+            return true;
+        } catch (\Exception $e) {
+            Log::error('Google Calendar Event Deletion Failed: ' . $e->getMessage());
+            return false;
         }
     }
 }

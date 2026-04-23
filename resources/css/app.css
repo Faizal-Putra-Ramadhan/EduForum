@@ -4,20 +4,24 @@
 
 @layer utilities {
     .glass {
-        @apply bg-white/10 dark:bg-gray-800/20 backdrop-blur-md border border-white/20 dark:border-gray-700/30 shadow-xl;
+        @apply bg-white/5 dark:bg-slate-950/20 backdrop-blur-xl border border-white/10 dark:border-white/5 shadow-2xl;
     }
 
     .mesh-gradient {
-        background: radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%),
-                    radial-gradient(at 50% 0%, hsla(225,39%,30%,1) 0, transparent 50%),
-                    radial-gradient(at 100% 0%, hsla(339,49%,30%,1) 0, transparent 50%);
-        background-color: #0b0d17;
+        background: radial-gradient(at 0% 0%, hsla(161, 51%, 14%, 1) 0, transparent 50%),
+                    radial-gradient(at 50% 0%, hsla(158, 64%, 20%, 1) 0, transparent 50%),
+                    radial-gradient(at 100% 0%, hsla(165, 82%, 15%, 1) 0, transparent 50%);
+        background-color: #020617;
+    }
+
+    .emerald-glow {
+        box-shadow: 0 0 50px -12px theme('colors.emerald.500/0.3');
     }
 
     @keyframes fade-in-up {
         from {
             opacity: 0;
-            transform: translateY(10px) scale(0.95);
+            transform: translateY(10px) scale(0.98);
         }
         to {
             opacity: 1;
@@ -26,6 +30,6 @@
     }
 
     .animate-message {
-        animation: fade-in-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        animation: fade-in-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
     }
 }

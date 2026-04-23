@@ -6,8 +6,6 @@ use Illuminate\Database\Eloquent\Model;
 
 class Conversation extends Model
 {
-    protected $connection = 'sqlite_messages';
-
     protected $fillable = [
         'name', 'type', 'avatar', 'creator_id', 'last_message_at'
     ];
@@ -21,10 +19,11 @@ class Conversation extends Model
         return $this->hasMany(ConversationUser::class, 'conversation_id');
     }
 
-    // Get users across connections manually
-    public function getUsersAttribute()
+    public function users()
     {
-        return User::whereIn('id', $this->conversationUsers->pluck('user_id'))->get();
+        return $this->belongsToMany(User::class, 'conversation_users', 'conversation_id', 'user_id')
+            ->withPivot('role')
+            ->withTimestamps();
     }
 
     public function messages()
