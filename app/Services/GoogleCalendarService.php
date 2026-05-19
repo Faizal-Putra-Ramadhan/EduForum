@@ -102,9 +102,57 @@ class GoogleCalendarService
     }
 
     /**
-     * Update an existing calendar event.
+     * Create a multi-day all-day calendar event.
+     * Cocok untuk pengingat yang berlangsung beberapa hari.
      */
-    public function updateEvent(User $user, $eventId, $summary, $description)
+    public function createMultiDayEvent(User $user, $summary, $description, $startDate, $endDate)
+    {
+        if (!$this->setAccessTokenForUser($user)) {
+            Log::warning("User {$user->id} has no valid Google Token.");
+            return null;
+        }
+
+        $service = new Calendar($this->client);
+
+        // All-day event menggunakan format 'date' (bukan 'dateTime')
+        $event = new Event([
+            'summary' => $summary,
+            'description' => $description,
+            'start' => [
+                'date' => $startDate->format('Y-m-d'),
+                'timeZone' => config('app.timezone'),
+            ],
+            'end' => [
+                'date' => $endDate->format('Y-m-d'),
+                'timeZone' => config('app.timezone'),
+            ],
+            'reminders' => [
+                'useDefault' => false,
+                'overrides' => [
+                    ['method' => 'popup', 'minutes' => 480],  // Reminder jam 08:00 pagi
+                    ['method' => 'popup', 'minutes' => 0],    // Reminder saat event dimulai
+                ],
+            ],
+        ]);
+
+        $calendarId = 'primary';
+        try {
+            $event = $service->events->insert($calendarId, $event);
+            Log::info("Multi-day calendar event created: {$event->id} ({$startDate->format('Y-m-d')} to {$endDate->format('Y-m-d')})");
+            return $event->id;
+        } catch (\Exception $e) {
+            Log::error('Google Calendar Multi-Day Event Creation Failed: ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Update an existing calendar event.
+     *
+     * For all-day reminder events, optional start/end date can be provided
+     * so the existing event is moved to a new date range.
+     */
+    public function updateEvent(User $user, $eventId, $summary, $description, $startDate = null, $endDate = null)
     {
         if (!$this->setAccessTokenForUser($user)) return null;
 
@@ -115,6 +163,18 @@ class GoogleCalendarService
             $event = $service->events->get($calendarId, $eventId);
             $event->setSummary($summary);
             $event->setDescription($description);
+
+            if ($startDate && $endDate) {
+                $event->setStart(new \Google\Service\Calendar\EventDateTime([
+                    'date' => $startDate->format('Y-m-d'),
+                    'timeZone' => config('app.timezone'),
+                ]));
+
+                $event->setEnd(new \Google\Service\Calendar\EventDateTime([
+                    'date' => $endDate->format('Y-m-d'),
+                    'timeZone' => config('app.timezone'),
+                ]));
+            }
 
             $updatedEvent = $service->events->update($calendarId, $eventId, $event);
             return $updatedEvent->id;

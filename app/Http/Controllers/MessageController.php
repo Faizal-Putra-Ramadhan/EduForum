@@ -8,15 +8,49 @@ use App\Models\Message;
 use App\Models\Conversation;
 use App\Models\LecturerScore;
 use App\Models\XpLog;
-use App\Mail\NewMessageMail;
+use App\Models\User;
 use App\Services\WhatsAppService;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Mail;
-use App\Jobs\CheckMessageReplyJob;
+use Illuminate\Support\Facades\Log;
+use App\Jobs\SendEmailReminderJob;
+use App\Jobs\SendCalendarReminderJob;
+use App\Jobs\SendWhatsAppReminderJob;
 use App\Events\MessageSent;
 
 class MessageController extends Controller
 {
+    /**
+     * ============================================================
+     * DELAY CONFIGURATION (untuk testing / production)
+     * ============================================================
+     * Ubah nilai di bawah ini untuk mengatur delay eskalasi:
+     * 
+     * TESTING (saat ini):
+     *   - Email:    30 detik
+     *   - Calendar: 1 menit
+     *   - WhatsApp: 3 menit
+     * 
+     * PRODUCTION (ganti nanti):
+     *   - Email:    now()->addMinutes(1)
+     *   - Calendar: now()->addMinutes(2)
+     *   - WhatsApp: now()->addDays(4)
+     * ============================================================
+     */
+    private function getEmailDelay()
+    {
+        return now()->addSeconds(30);       // PRODUCTION: now()->addMinutes(1)
+    }
+
+    private function getCalendarDelay()
+    {
+        return now()->addMinutes(1);        // PRODUCTION: now()->addMinutes(2)
+    }
+
+    private function getWhatsAppDelay()
+    {
+        return now()->addMinutes(3);        // PRODUCTION: now()->addDays(4)
+    }
+
     public function store(Request $request, $conversationId, \App\Services\ReminderService $reminderService)
     {
         $request->validate([
@@ -106,44 +140,58 @@ class MessageController extends Controller
         // Reward the sender
         LecturerScore::adjustXP($userId, 5, 'Mengirim pesan di Forum');
 
-        // SMART SYNC & REMINDERS
+        // ============================================================
+        // ESKALASI BERTAHAP: Email → Calendar → WhatsApp
+        // ============================================================
         if ($isStudent) {
-            // Student to Lecturer?
             if ($conversation->type === 'private') {
                 $lecturerMapping = $conversation->conversationUsers->where('user_id', '!=', $userId)->first();
                 $lecturer = $lecturerMapping ? $lecturerMapping->user : null;
+
                 if ($lecturer && $lecturer->role === 'dosen') {
-                    $reminderService->upsertReminder($lecturer, $user);
-                    
-                    // Auto-Email Notification
-                    try {
-                        $actionUrl = url('/forum/' . $conversation->id);
-                        Mail::to($lecturer->email)->send(new NewMessageMail($user, $request->input('content'), 'Private Consultation', $actionUrl));
-                    } catch (\Exception $e) {
-                        \Log::error('Gagal mengirim email notifikasi ke dosen (Private): ' . $e->getMessage());
-                    }
+                    // Simpan reminder record (tanpa langsung buat Calendar event)
+                    $reminderService->trackReminder($lecturer, $user);
+
+                    // TAHAP 1: Email setelah delay
+                    SendEmailReminderJob::dispatch($message)
+                        ->delay($this->getEmailDelay());
+
+                    // TAHAP 2: Google Calendar setelah delay lebih lama
+                    SendCalendarReminderJob::dispatch($message)
+                        ->delay($this->getCalendarDelay());
+
+                    // TAHAP 3: WhatsApp setelah delay paling lama
+                    SendWhatsAppReminderJob::dispatch($message)
+                        ->delay($this->getWhatsAppDelay());
+
+                    Log::info("[Eskalasi] 3 job terjadwal untuk message ID {$message->id} ke dosen {$lecturer->name}");
                 }
             } else {
                 // Group Chat: Check for tag @namadosen
                 $content = $request->input('content');
                 foreach ($conversation->conversationUsers as $cu) {
                     $target = $cu->user;
-                    if ($target->role === 'dosen' && str_contains(strtolower($content), '@' . strtolower(str_replace(' ', '', $target->name)))) {
-                        $reminderService->upsertReminder($target, $user, $conversation->name);
-                        
-                        // Auto-Email Notification
-                        try {
-                            $actionUrl = url('/forum/' . $conversation->id);
-                            Mail::to($target->email)->send(new NewMessageMail($user, $content, $conversation->name, $actionUrl));
-                        } catch (\Exception $e) {
-                            \Log::error('Gagal mengirim email notifikasi ke dosen (Group): ' . $e->getMessage());
-                        }
+                    if ($target && $target->role === 'dosen' && str_contains(strtolower($content), '@' . strtolower(str_replace(' ', '', $target->name)))) {
+                        $reminderService->trackReminder($target, $user, $conversation->name);
+
+                        // TAHAP 1: Email
+                        SendEmailReminderJob::dispatch($message)
+                            ->delay($this->getEmailDelay());
+
+                        // TAHAP 2: Calendar
+                        SendCalendarReminderJob::dispatch($message)
+                            ->delay($this->getCalendarDelay());
+
+                        // TAHAP 3: WhatsApp
+                        SendWhatsAppReminderJob::dispatch($message)
+                            ->delay($this->getWhatsAppDelay());
+
+                        Log::info("[Eskalasi] 3 job terjadwal untuk message ID {$message->id} ke dosen {$target->name} (grup)");
                     }
                 }
             }
         } else {
-            // Lecturer to Student(s)?
-            // If lecturer replies, remove the reminder
+            // Dosen membalas → update/hapus data reminder internal saja
             if ($conversation->type === 'private') {
                 $studentMapping = $conversation->conversationUsers->where('user_id', '!=', $userId)->first();
                 $student = $studentMapping ? $studentMapping->user : null;
@@ -151,13 +199,9 @@ class MessageController extends Controller
                     $reminderService->removeReminder($user, $student);
                 }
             } else {
-                // In group, if lecturer speaks, they might be replying to everyone or specific ones.
-                // Simple: when lecturer speaks in group, we clear their active reminder for that group's unreplied list?
-                // The requirement doesn't specify group reply as clearly. 
-                // Let's assume any message from lecturer clears their reminder for that conversation context.
+                // Dosen bicara di grup → clear reminder mereka
                 $reminder = \App\Models\LecturerReminder::where('lecturer_id', $userId)->first();
                 if ($reminder) {
-                    // Logic to find which students in this group were waiting
                     $studentsInGroup = $conversation->conversationUsers->pluck('user_id')->toArray();
                     $unreplied = $reminder->unreplied_students ?? [];
                     foreach ($unreplied as $sId) {

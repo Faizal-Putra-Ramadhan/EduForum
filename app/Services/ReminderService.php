@@ -18,9 +18,10 @@ class ReminderService
     }
 
     /**
-     * Add or update a reminder for a lecturer.
+     * Track bahwa ada mahasiswa yang menunggu balasan dosen.
+     * TIDAK langsung membuat Calendar event — itu dilakukan oleh SendCalendarReminderJob.
      */
-    public function upsertReminder(User $lecturer, User $student, $groupName = null)
+    public function trackReminder(User $lecturer, User $student, $groupName = null)
     {
         $reminder = LecturerReminder::firstOrCreate(
             ['lecturer_id' => $lecturer->id],
@@ -42,42 +43,16 @@ class ReminderService
 
         $reminder->unreplied_students = $students;
         $reminder->group_sources = $groups;
-
-        $count = count($students);
-        $summary = "Ada {$count} mahasiswa mengirim pesan";
-        
-        $description = "Mahasiswa yang menunggu balasan:\n";
-        $studentNames = User::whereIn('id', $students)->pluck('name')->toArray();
-        foreach ($studentNames as $name) {
-            $description .= "- {$name}\n";
-        }
-
-        if (!empty($groups)) {
-            $description .= "\nSumber Grup:\n- " . implode("\n- ", $groups);
-        }
-
-        $description .= "\n\nBalas segera di: " . config('app.url') . "/forum";
-
-        if (!$reminder->event_id) {
-            // Create New Event
-            $startTime = Carbon::now()->addMinutes(5); // Start soon
-            $endTime = (clone $startTime)->addMinutes(30);
-            
-            $eventId = $this->googleService->createEvent($lecturer, $summary, $description, $startTime, $endTime);
-            if ($eventId) {
-                $reminder->event_id = $eventId;
-            }
-        } else {
-            // Update Existing Event
-            $this->googleService->updateEvent($lecturer, $reminder->event_id, $summary, $description);
-        }
-
         $reminder->save();
+
+        Log::info("Reminder tracked: Dosen {$lecturer->name} | Mahasiswa {$student->name} | Total menunggu: " . count($students));
+
         return $reminder;
     }
 
     /**
      * Remove a student from a lecturer's reminder list.
+        * Tidak melakukan penghapusan event Google Calendar otomatis.
      */
     public function removeReminder(User $lecturer, User $student)
     {
@@ -92,18 +67,15 @@ class ReminderService
         });
 
         if (empty($students)) {
-            // All students replied to, delete event
-            if ($reminder->event_id) {
-                $this->googleService->deleteEvent($lecturer, $reminder->event_id);
-            }
+            // All students replied to, remove reminder record only
             $reminder->delete();
-            Log::info("Lecturer {$lecturer->id} reminder cleared.");
+            Log::info("Reminder untuk dosen {$lecturer->name} dihapus (semua sudah dibalas).");
         } else {
             // Update the event with remaining students
             $reminder->unreplied_students = array_values($students);
             
             $count = count($students);
-            $summary = "Ada {$count} mahasiswa mengirim pesan";
+            $summary = "📩 Ada {$count} mahasiswa menunggu balasan di EduForum";
             
             $description = "Mahasiswa yang masih menunggu balasan:\n";
             $studentNames = User::whereIn('id', $students)->pluck('name')->toArray();
@@ -113,8 +85,12 @@ class ReminderService
             
             $description .= "\nBalas segera di: " . config('app.url') . "/forum";
 
-            $this->googleService->updateEvent($lecturer, $reminder->event_id, $summary, $description);
+            if ($reminder->event_id) {
+                $this->googleService->updateEvent($lecturer, $reminder->event_id, $summary, $description);
+            }
             $reminder->save();
+            
+            Log::info("Reminder updated: Dosen {$lecturer->name} | Sisa menunggu: {$count}");
         }
     }
 }
