@@ -13,7 +13,7 @@ return new class extends Migration
     public function up(): void
     {
         // 1. Update conversations table
-        Schema::connection('sqlite_messages')->table('conversations', function (Blueprint $table) {
+        Schema::table('conversations', function (Blueprint $table) {
             $table->string('name')->nullable();
             $table->string('avatar')->nullable();
             $table->string('type')->default('private'); // private or group
@@ -25,7 +25,7 @@ return new class extends Migration
         });
 
         // 2. Create conversation_users pivot table
-        Schema::connection('sqlite_messages')->create('conversation_users', function (Blueprint $table) {
+        Schema::create('conversation_users', function (Blueprint $table) {
             $table->id();
             $table->foreignId('conversation_id')->constrained('conversations')->cascadeOnDelete();
             $table->unsignedBigInteger('user_id');
@@ -34,10 +34,10 @@ return new class extends Migration
         });
 
         // 3. Data Migration: Move existing DM participants to pivot table
-        $conversations = DB::connection('sqlite_messages')->table('conversations')->get();
+        $conversations = DB::table('conversations')->get();
         foreach ($conversations as $conv) {
             if ($conv->participant_1_id && $conv->participant_2_id) {
-                DB::connection('sqlite_messages')->table('conversation_users')->insert([
+                DB::table('conversation_users')->insert([
                     ['conversation_id' => $conv->id, 'user_id' => $conv->participant_1_id, 'role' => 'member', 'created_at' => now(), 'updated_at' => now()],
                     ['conversation_id' => $conv->id, 'user_id' => $conv->participant_2_id, 'role' => 'member', 'created_at' => now(), 'updated_at' => now()],
                 ]);
@@ -50,8 +50,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::connection('sqlite_messages')->dropIfExists('conversation_users');
-        Schema::connection('sqlite_messages')->table('conversations', function (Blueprint $table) {
+        Schema::dropIfExists('conversation_users');
+        Schema::table('conversations', function (Blueprint $table) {
             $table->dropColumn(['name', 'avatar', 'type', 'creator_id']);
         });
     }

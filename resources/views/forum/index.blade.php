@@ -5,13 +5,13 @@
                 {{ __('Forum & Chat') }}
             </h2>
             <div class="flex items-center space-x-3">
-                <button @click="openModal = true" class="inline-flex items-center px-4 py-2 bg-indigo-600/10 border border-indigo-500/20 rounded-xl font-bold text-xs text-indigo-400 uppercase tracking-widest hover:bg-indigo-600/20 active:bg-indigo-700/30 transition shadow-sm font-sans">
+                <button @click="openModal = true" class="inline-flex items-center px-4 py-2 bg-white dark:bg-[#1f2937] border border-gray-200 dark:border-gray-700 rounded-full font-semibold text-xs text-gray-700 dark:text-gray-300 uppercase tracking-wider hover:bg-gray-50 dark:hover:bg-[#374151] active:scale-95 transition-all shadow-sm">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
                     </svg>
                     Buat Grup
                 </button>
-                <a href="{{ route('forum.search') }}" class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-xl font-bold text-xs text-white uppercase tracking-widest hover:bg-indigo-500 active:bg-indigo-700 transition shadow-lg shadow-indigo-500/20">
+                <a href="{{ route('forum.search') }}" class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-full font-semibold text-xs text-white uppercase tracking-wider hover:bg-indigo-500 active:scale-95 transition-all shadow-md shadow-indigo-500/20">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                     </svg>
@@ -72,7 +72,7 @@
 
     <div class="py-12">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            <div class="glass overflow-hidden shadow-xl sm:rounded-3xl border border-white/10">
+            <div class="bg-white dark:bg-[#111827] overflow-hidden shadow-sm sm:rounded-3xl border border-gray-200/60 dark:border-white/5">
                 <div class="p-6 text-gray-900 dark:text-gray-100">
                     @if($conversations->isEmpty())
                         <div class="text-center py-20">
@@ -85,7 +85,7 @@
                             <p class="text-gray-500 dark:text-gray-400 mt-3 max-w-sm mx-auto leading-relaxed">Kolaborasi dan diskusi akademik dimulai di sini. Gunakan tombol di atas untuk membuat chat private atau grup.</p>
                         </div>
                     @else
-                        <div class="divide-y divide-white/5">
+                        <div class="divide-y divide-gray-100 dark:divide-gray-800/60 space-y-2">
                             @foreach($conversations as $conversation)
                                 @php
                                     if ($conversation->is_group) {
@@ -105,7 +105,7 @@
                                         $badgeColor = 'bg-indigo-600/10 text-indigo-400 border-indigo-500/20';
                                     }
                                 @endphp
-                                <a href="{{ route('conversation.show', $conversation->id) }}" class="flex items-center p-5 hover:bg-white/5 transition-all duration-300 group rounded-2xl mb-2 border border-transparent hover:border-white/5">
+                                <a href="{{ route('conversation.show', $conversation->id) }}" class="flex items-center p-5 bg-transparent hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors duration-300 group rounded-2xl border border-transparent">
                                     <div class="relative">
                                         @if(!$isGroup && $otherUser && $otherUser->avatar)
                                             <img src="{{ asset('storage/' . $otherUser->avatar) }}" alt="{{ $displayTitle }}" class="w-14 h-14 rounded-2xl object-cover border-2 border-indigo-500/20 group-hover:scale-105 transition-transform">

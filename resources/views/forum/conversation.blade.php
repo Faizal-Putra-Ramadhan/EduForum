@@ -1,8 +1,8 @@
 <x-app-layout>
-    <div class="flex h-[calc(100vh-64px)] overflow-hidden bg-gray-50 dark:bg-[#0b0d17]">
+    <div class="flex h-[calc(100vh-64px)] overflow-hidden bg-transparent">
         <!-- Sidebar - Conversation List -->
-        <div class="hidden md:flex flex-col w-1/3 lg:w-1/4 border-r border-white/5 bg-white/5 backdrop-blur-xl" x-data="{ openMenu: false, openGroupModal: false }">
-            <div class="p-6 border-b border-white/5 flex items-center justify-between relative">
+        <div class="hidden md:flex flex-col w-1/3 lg:w-1/4 border-r border-gray-200/50 dark:border-white/5 bg-white/40 dark:bg-[#111827]/40 backdrop-blur-xl" x-data="{ openMenu: false, openGroupModal: false }">
+            <div class="p-6 border-b border-gray-200/50 dark:border-white/5 flex items-center justify-between relative">
                 <h3 class="font-bold text-xl text-gray-900 dark:text-white uppercase tracking-tight">Messages</h3>
                 
                 <div class="relative">
@@ -143,9 +143,9 @@
                     $currentOther = $otherMapping->user ?? null;
                 }
             @endphp
-            <div class="p-4 md:px-6 md:py-4 border-b border-white/5 glass flex items-center justify-between z-10">
+            <div class="p-4 md:px-6 md:py-4 border-b border-gray-200/50 dark:border-white/5 bg-white/40 dark:bg-gray-900/40 backdrop-blur-md flex items-center justify-between z-10">
                 <div class="flex items-center">
-                    <a href="{{ route('forum') }}" class="mr-4 md:hidden text-gray-400 hover:text-white">
+                    <a href="{{ route('forum') }}" class="mr-4 md:hidden text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
                         </svg>
@@ -207,7 +207,7 @@
                                 @if($isGroup && !$isMe)
                                     <div class="text-[10px] text-gray-400 font-bold ml-1 mb-1">{{ $message->sender->name ?? 'User' }}</div>
                                 @endif
-                                <div class="px-4 py-3 rounded-2xl shadow-sm {{ $isMe ? 'bg-indigo-600 text-white rounded-br-none shadow-indigo-500/20' : 'bg-white/10 dark:bg-gray-800 text-gray-900 dark:text-white rounded-bl-none border border-white/5 backdrop-blur-sm' }}">
+                                <div class="px-4 py-3 rounded-2xl shadow-sm {{ $isMe ? 'bg-indigo-600 text-white rounded-br-sm shadow-indigo-500/20' : 'bg-white border border-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white rounded-bl-sm dark:border-white/5 backdrop-blur-sm' }}">
                                     <p class="text-sm leading-relaxed">{{ $message->content }}</p>
                                 </div>
                                 <div class="mt-1 flex items-center {{ $isMe ? 'justify-end' : 'justify-start' }} space-x-1">
@@ -224,18 +224,18 @@
                 @endif
             </div>
 
-            <div class="p-4 md:p-6 glass border-t border-white/5 z-10">
+            <div class="p-4 md:p-6 bg-white/40 dark:bg-[#111827]/60 backdrop-blur-xl border-t border-gray-200/50 dark:border-white/5 z-10 shadow-[0_-4px_20px_rgba(0,0,0,0.02)]">
                 <form id="message-form" action="{{ route('message.store', $conversation->id) }}" method="POST" class="relative group">
                     @csrf
                     <div class="flex items-center space-x-3">
-                        <button type="button" class="p-3 bg-white/5 hover:bg-white/10 text-gray-400 rounded-xl transition-all active:scale-95">
+                        <button type="button" class="p-3 bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-500 dark:text-gray-400 rounded-xl transition-all active:scale-95">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path>
                             </svg>
                         </button>
                         <div class="flex-1 relative">
                             <input id="message-input" type="text" name="content" required 
-                                   class="block w-full py-3.5 px-4 bg-white/5 border-gray-700/50 focus:border-indigo-500 focus:ring-indigo-500 rounded-xl text-gray-100 placeholder-gray-500 transition-all" 
+                                   class="block w-full py-3.5 px-5 bg-white border-gray-200 dark:bg-gray-800 dark:border-gray-700/50 focus:border-indigo-500 focus:ring-indigo-500 rounded-full text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 transition-all shadow-sm" 
                                    placeholder="Ketik pesan di sini..." autocomplete="off">
                         </div>
                         <button type="submit" class="p-3.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl shadow-lg shadow-indigo-500/20 transform active:scale-95 transition-all">
@@ -414,7 +414,7 @@
                 messageDiv.innerHTML = `
                     <div class="max-w-[85%] md:max-w-md">
                         ${senderNameElement}
-                        <div class="px-4 py-3 rounded-2xl shadow-sm ${isMe ? 'bg-indigo-600 text-white rounded-br-none shadow-indigo-500/20' : 'bg-white/10 dark:bg-gray-800 text-gray-900 dark:text-white rounded-bl-none border border-white/5 backdrop-blur-sm'}">
+                        <div class="px-4 py-3 rounded-2xl shadow-sm ${isMe ? 'bg-indigo-600 text-white rounded-br-sm shadow-indigo-500/20' : 'bg-white border border-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white rounded-bl-sm dark:border-white/5 backdrop-blur-sm'}">
                             <p class="text-sm leading-relaxed">${message.content}</p>
                         </div>
                         <div class="mt-1 flex items-center ${isMe ? 'justify-end' : 'justify-start'} space-x-1">

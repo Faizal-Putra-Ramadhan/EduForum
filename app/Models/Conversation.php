@@ -6,8 +6,6 @@ use Illuminate\Database\Eloquent\Model;
 
 class Conversation extends Model
 {
-    protected $connection = 'sqlite_messages';
-
     protected $fillable = [
         'name', 'type', 'avatar', 'creator_id', 'last_message_at'
     ];

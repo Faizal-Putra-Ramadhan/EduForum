@@ -8,20 +8,26 @@
         <title>{{ config('app.name', 'Laravel') }}</title>
 
         <!-- Fonts -->
-        <link rel="preconnect" href="https://fonts.bunny.net">
-        <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 
         <!-- Scripts -->
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
-    <body class="font-sans antialiased">
-        <div class="min-h-screen bg-gray-100 dark:bg-gray-900">
+    <body class="font-sans antialiased text-gray-900 dark:text-gray-100 bg-[#f8fafc] dark:bg-[#0b1120] selection:bg-indigo-500/30">
+        <div class="min-h-screen relative">
+            <!-- Subtle Background Gradients -->
+            <div class="absolute inset-0 overflow-hidden pointer-events-none -z-10">
+                <div class="absolute -top-[40%] -left-[20%] w-[70%] h-[70%] rounded-full bg-indigo-500/10 blur-[120px] mix-blend-screen dark:bg-indigo-600/10"></div>
+                <div class="absolute -bottom-[20%] -right-[10%] w-[60%] h-[60%] rounded-full bg-blue-500/10 blur-[100px] mix-blend-screen dark:bg-blue-600/10"></div>
+            </div>
             @include('layouts.navigation')
 
             <!-- Page Heading -->
             @isset($header)
-                <header class="bg-white dark:bg-gray-800 shadow">
-                    <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+                <header class="bg-white/70 dark:bg-[#111827]/70 backdrop-blur-md sticky top-0 z-40 border-b border-gray-200/50 dark:border-white/5 transition-all shadow-sm">
+                    <div class="max-w-7xl mx-auto py-5 px-4 sm:px-6 lg:px-8">
                         {{ $header }}
                     </div>
                 </header>

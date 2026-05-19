@@ -6,8 +6,6 @@ use Illuminate\Database\Eloquent\Model;
 
 class NotificationLog extends Model
 {
-    protected $connection = 'sqlite_messages';
-
     protected $fillable = [
         'message_id', 'recipient_id', 'type', 'attempt'
     ];

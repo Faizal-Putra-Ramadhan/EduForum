@@ -11,8 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::connection('sqlite_messages')->dropIfExists('notification_logs');
-        Schema::connection('sqlite_messages')->create('notification_logs', function (Blueprint $table) {
+        Schema::dropIfExists('notification_logs');
+        Schema::create('notification_logs', function (Blueprint $table) {
             $table->id();
             $table->foreignId('message_id')->constrained('messages')->cascadeOnDelete();
             $table->unsignedBigInteger('recipient_id');
@@ -27,6 +27,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::connection('sqlite_messages')->dropIfExists('notification_logs');
+        Schema::dropIfExists('notification_logs');
     }
 };
