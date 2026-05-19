@@ -12,8 +12,6 @@ class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
-    
-    protected $connection = 'mysql';
 
     /**
      * The attributes that are mass assignable.
@@ -30,6 +28,10 @@ class User extends Authenticatable
         'avatar',
         'prodi',
         'password',
+        'google_id',
+        'google_token',
+        'google_refresh_token',
+        'google_token_expires_at'
     ];
 
     /**
@@ -52,6 +54,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'google_token_expires_at' => 'datetime',
         ];
     }
 

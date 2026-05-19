@@ -16,14 +16,18 @@ class NewMessageMail extends Mailable implements ShouldQueue
 
     public $sender;
     public $content;
+    public $groupName;
+    public $actionUrl;
 
     /**
      * Create a new message instance.
      */
-    public function __construct($sender, $content)
+    public function __construct($sender, $content, $groupName = null, $actionUrl = null)
     {
         $this->sender = $sender;
         $this->content = $content;
+        $this->groupName = $groupName;
+        $this->actionUrl = $actionUrl;
     }
 
     /**

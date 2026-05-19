@@ -7,12 +7,16 @@ use App\Http\Controllers\ForumController;
 use App\Http\Controllers\ConversationController;
 use App\Http\Controllers\MessageController;
 use App\Http\Controllers\LeaderboardController;
+use App\Http\Controllers\GoogleAuthController;
 
 Route::get('/', function () {
     return redirect('/login');
 });
 
 Route::middleware('auth')->group(function () {
+    Route::get('/auth/google', [GoogleAuthController::class, 'redirectToGoogle'])->name('google.auth');
+    Route::get('/auth/google/callback', [GoogleAuthController::class, 'handleGoogleCallback'])->name('google.callback');
+    
     Route::get('/dashboard', function () {
         return view('dashboard');
     })->name('dashboard');

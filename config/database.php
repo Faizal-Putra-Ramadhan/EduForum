@@ -46,7 +46,7 @@ return [
 
         'sqlite_messages' => [
             'driver' => 'sqlite',
-            'database' => database_path('messages.sqlite'),
+            'database' => env('DB_DATABASE_MESSAGES', database_path('messages.sqlite')),
             'prefix' => '',
         ],
 

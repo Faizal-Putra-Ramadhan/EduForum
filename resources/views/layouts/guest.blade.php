@@ -104,6 +104,16 @@
                 </div>
             </div>
         </div>
+
+        <style>
+            @keyframes slow-zoom {
+                0% { transform: scale(1.1); }
+                100% { transform: scale(1); }
+            }
+            .animate-slow-zoom {
+                animation: slow-zoom 20s ease-in-out infinite alternate;
+            }
+        </style>
     </body>
 </html>
 

@@ -115,6 +115,21 @@ class ConversationController extends Controller
 
         $allUsers = User::whereIn('id', $chattedUserIds)->get();
 
-        return view('forum.conversation', compact('conversation', 'conversations', 'showXpModal', 'allUsers'));
+        // Calculate Blocked Status (Only if student is in a private chat with a lecturer)
+        $isBlocked = false;
+        if ($user->role === 'mahasiswa' && $conversation->type === 'private') {
+            $hasLecturer = $conversation->conversationUsers->contains(function ($cu) {
+                return $cu->user && $cu->user->role === 'dosen';
+            });
+
+            if ($hasLecturer) {
+                $lastMsg = $conversation->messages->last();
+                if ($lastMsg && $lastMsg->sender_id === $user->id && $lastMsg->created_at > now()->subDays(3)) {
+                    $isBlocked = true;
+                }
+            }
+        }
+
+        return view('forum.conversation', compact('conversation', 'conversations', 'showXpModal', 'allUsers', 'isBlocked'));
     }
 }
