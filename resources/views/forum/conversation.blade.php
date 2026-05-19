@@ -1,10 +1,9 @@
 <x-app-layout>
-    <div class="flex h-full overflow-hidden">
-        
-        <!-- Sidebar - Conversation List (Hidden on Mobile) -->
-        <div class="hidden md:flex flex-col w-1/3 lg:w-1/4 border-r border-white/5 bg-slate-950/20 backdrop-blur-3xl shrink-0" x-data="{ openMenu: false, openGroupModal: false }">
-            <div class="p-8 border-b border-white/5 flex items-center justify-between relative">
-                <h3 class="font-black text-xs text-gray-500 uppercase tracking-[0.3em]">Direct Messages</h3>
+    <div class="flex h-[calc(100vh-64px)] overflow-hidden bg-transparent">
+        <!-- Sidebar - Conversation List -->
+        <div class="hidden md:flex flex-col w-1/3 lg:w-1/4 border-r border-gray-200/50 dark:border-white/5 bg-white/40 dark:bg-[#111827]/40 backdrop-blur-xl" x-data="{ openMenu: false, openGroupModal: false }">
+            <div class="p-6 border-b border-gray-200/50 dark:border-white/5 flex items-center justify-between relative">
+                <h3 class="font-bold text-xl text-gray-900 dark:text-white uppercase tracking-tight">Messages</h3>
                 
                 <div class="relative">
                     <button @click="openMenu = !openMenu" class="p-2.5 bg-emerald-600 rounded-xl text-white hover:bg-emerald-500 transition-all shadow-lg shadow-emerald-500/20 active:scale-95 group">
@@ -106,9 +105,9 @@
                     $currentOther = $otherMapping->user ?? null;
                 }
             @endphp
-            <div class="px-8 h-24 border-b border-white/5 bg-slate-950/20 backdrop-blur-2xl flex items-center justify-between z-10">
+            <div class="p-4 md:px-6 md:py-4 border-b border-gray-200/50 dark:border-white/5 bg-white/40 dark:bg-gray-900/40 backdrop-blur-md flex items-center justify-between z-10">
                 <div class="flex items-center">
-                    <a href="{{ route('forum') }}" class="mr-6 md:hidden text-gray-400 hover:text-emerald-400 transition-colors">
+                    <a href="{{ route('forum') }}" class="mr-4 md:hidden text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
                         </svg>
@@ -174,22 +173,16 @@
                                 @if($isGroup && !$isMe)
                                     <div class="text-[9px] text-emerald-500 font-black uppercase tracking-widest ml-4 mb-2">{{ $message->sender->name ?? 'User' }}</div>
                                 @endif
-                                <div class="relative group/bubble">
-                                    <div class="px-6 py-4 rounded-[28px] shadow-2xl {{ $isMe 
-                                        ? 'bg-emerald-600 text-white rounded-br-lg shadow-emerald-900/40 border border-emerald-400/20' 
-                                        : 'bg-white/5 backdrop-blur-md text-white rounded-bl-lg border border-white/10' }}">
-                                        <p class="text-[14px] leading-relaxed font-medium">{{ $message->content }}</p>
-                                    </div>
-                                    
-                                    <div class="mt-2 flex items-center {{ $isMe ? 'justify-end' : 'justify-start' }} space-x-2 px-2">
-                                        <span class="text-[9px] text-gray-600 font-black tracking-widest">{{ $message->created_at->format('H:i') }}</span>
-                                        @if($isMe)
-                                            <div class="flex space-x-0.5">
-                                                <div class="w-1.5 h-1.5 rounded-full {{ $message->is_read ? 'bg-emerald-400 animate-pulse' : 'bg-gray-700' }}"></div>
-                                                <div class="w-1.5 h-1.5 rounded-full {{ $message->is_read ? 'bg-emerald-400 animate-pulse' : 'bg-gray-700' }}"></div>
-                                            </div>
-                                        @endif
-                                    </div>
+                                <div class="px-4 py-3 rounded-2xl shadow-sm {{ $isMe ? 'bg-indigo-600 text-white rounded-br-sm shadow-indigo-500/20' : 'bg-white border border-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white rounded-bl-sm dark:border-white/5 backdrop-blur-sm' }}">
+                                    <p class="text-sm leading-relaxed">{{ $message->content }}</p>
+                                </div>
+                                <div class="mt-1 flex items-center {{ $isMe ? 'justify-end' : 'justify-start' }} space-x-1">
+                                    <span class="text-[9px] text-gray-500 font-medium">{{ $message->created_at->format('H:i') }}</span>
+                                    @if($isMe)
+                                        <svg class="w-3 h-3 {{ $message->is_read ? 'text-indigo-400' : 'text-gray-500' }}" fill="currentColor" viewBox="0 0 20 20">
+                                            <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"></path>
+                                        </svg>
+                                    @endif
                                 </div>
                             </div>
                         </div>
@@ -197,19 +190,19 @@
                 @endif
             </div>
 
-            <!-- Enhanced Input Area / Block State -->
-            <div class="p-8 z-10">
-                @if($isBlocked)
-                    <div class="glass border border-emerald-500/20 rounded-[32px] p-8 flex items-center justify-between relative overflow-hidden group">
-                        <div class="absolute inset-0 bg-emerald-600/[0.03] animate-pulse"></div>
-                        <div class="relative z-10 flex items-center space-x-6">
-                            <div class="w-14 h-14 bg-emerald-500/20 rounded-2xl flex items-center justify-center text-emerald-400 shrink-0 border border-emerald-500/30">
-                                <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                            </div>
-                            <div>
-                                <p class="text-sm font-black text-white uppercase tracking-widest">Protocol Sync in Progress</p>
-                                <p class="text-xs text-gray-500 mt-1 font-medium max-w-md leading-relaxed">The 3x24h academic window is currently active. Your query is in the expert's queue. Bridge will auto-resume upon reply.</p>
-                            </div>
+            <div class="p-4 md:p-6 bg-white/40 dark:bg-[#111827]/60 backdrop-blur-xl border-t border-gray-200/50 dark:border-white/5 z-10 shadow-[0_-4px_20px_rgba(0,0,0,0.02)]">
+                <form id="message-form" action="{{ route('message.store', $conversation->id) }}" method="POST" class="relative group">
+                    @csrf
+                    <div class="flex items-center space-x-3">
+                        <button type="button" class="p-3 bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-500 dark:text-gray-400 rounded-xl transition-all active:scale-95">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path>
+                            </svg>
+                        </button>
+                        <div class="flex-1 relative">
+                            <input id="message-input" type="text" name="content" required 
+                                   class="block w-full py-3.5 px-5 bg-white border-gray-200 dark:bg-gray-800 dark:border-gray-700/50 focus:border-indigo-500 focus:ring-indigo-500 rounded-full text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 transition-all shadow-sm" 
+                                   placeholder="Ketik pesan di sini..." autocomplete="off">
                         </div>
                         <div class="relative z-10 hidden lg:block">
                             <span class="text-[10px] font-black text-emerald-500 uppercase tracking-[0.3em] bg-emerald-500/10 px-4 py-2 rounded-xl">Status: Processing</span>
@@ -386,19 +379,16 @@
                 messageDiv.innerHTML = `
                     <div class="max-w-[80%] md:max-w-lg">
                         ${senderNameElement}
-                        <div class="relative">
-                            <div class="px-6 py-4 rounded-[28px] shadow-2xl ${isMe ? 'bg-emerald-600 text-white rounded-br-lg border border-emerald-400/20' : 'bg-white/5 backdrop-blur-md text-white rounded-bl-lg border border-white/10'}">
-                                <p class="text-[14px] leading-relaxed font-medium">${message.content}</p>
-                            </div>
-                            <div class="mt-2 flex items-center ${isMe ? 'justify-end' : 'justify-start'} space-x-2 px-2">
-                                <span class="text-[9px] text-gray-600 font-black tracking-widest">${time}</span>
-                                ${isMe ? `
-                                    <div class="flex space-x-0.5">
-                                        <div class="w-1.5 h-1.5 rounded-full bg-gray-700"></div>
-                                        <div class="w-1.5 h-1.5 rounded-full bg-gray-700"></div>
-                                    </div>
-                                ` : ''}
-                            </div>
+                        <div class="px-4 py-3 rounded-2xl shadow-sm ${isMe ? 'bg-indigo-600 text-white rounded-br-sm shadow-indigo-500/20' : 'bg-white border border-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white rounded-bl-sm dark:border-white/5 backdrop-blur-sm'}">
+                            <p class="text-sm leading-relaxed">${message.content}</p>
+                        </div>
+                        <div class="mt-1 flex items-center ${isMe ? 'justify-end' : 'justify-start'} space-x-1">
+                            <span class="text-[9px] text-gray-500 font-medium">${time}</span>
+                            ${isMe ? `
+                                <svg class="w-3 h-3 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"></path>
+                                </svg>
+                            ` : ''}
                         </div>
                     </div>
                 `;

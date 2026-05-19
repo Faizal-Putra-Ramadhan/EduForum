@@ -10,32 +10,28 @@
         <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@200;300;400;500;600;700;800&display=swap" rel="stylesheet">
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 
         <!-- Scripts -->
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
-    <body class="font-sans antialiased text-white selection:bg-emerald-500/30 selection:text-emerald-200" x-data="{ globalGroupModalOpen: false }">
-        <div class="min-h-screen bg-slate-950 flex overflow-hidden">
-            <!-- Global Background Elements -->
-            <div class="fixed inset-0 z-0 pointer-events-none">
-                <div class="absolute top-0 right-0 w-[500px] h-[500px] bg-emerald-600/5 blur-[120px] rounded-full -mr-64 -mt-64"></div>
-                <div class="absolute bottom-0 left-0 w-[500px] h-[500px] bg-emerald-900/5 blur-[120px] rounded-full -ml-64 -mb-64"></div>
-                <div class="absolute inset-0 mesh-gradient opacity-40"></div>
+    <body class="font-sans antialiased text-gray-900 dark:text-gray-100 bg-[#f8fafc] dark:bg-[#0b1120] selection:bg-indigo-500/30">
+        <div class="min-h-screen relative">
+            <!-- Subtle Background Gradients -->
+            <div class="absolute inset-0 overflow-hidden pointer-events-none -z-10">
+                <div class="absolute -top-[40%] -left-[20%] w-[70%] h-[70%] rounded-full bg-indigo-500/10 blur-[120px] mix-blend-screen dark:bg-indigo-600/10"></div>
+                <div class="absolute -bottom-[20%] -right-[10%] w-[60%] h-[60%] rounded-full bg-blue-500/10 blur-[100px] mix-blend-screen dark:bg-blue-600/10"></div>
             </div>
-
-            <!-- Navigation Sidebar -->
             @include('layouts.navigation')
 
-            <!-- Main Content Area -->
-            <div class="flex-1 flex flex-col relative z-10 overflow-hidden">
-                @isset($header)
-                    <header class="py-6 px-8 border-b border-white/5 bg-slate-950/20 backdrop-blur-md">
-                        <div class="max-w-7xl mx-auto uppercase tracking-widest">
-                            {{ $header }}
-                        </div>
-                    </header>
-                @endisset
+            <!-- Page Heading -->
+            @isset($header)
+                <header class="bg-white/70 dark:bg-[#111827]/70 backdrop-blur-md sticky top-0 z-40 border-b border-gray-200/50 dark:border-white/5 transition-all shadow-sm">
+                    <div class="max-w-7xl mx-auto py-5 px-4 sm:px-6 lg:px-8">
+                        {{ $header }}
+                    </div>
+                </header>
+            @endisset
 
                 <main class="flex-1 relative overflow-hidden">
                     {{ $slot }}

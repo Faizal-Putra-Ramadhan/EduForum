@@ -5,201 +5,89 @@ namespace App\Services;
 use Google\Client;
 use Google\Service\Calendar;
 use Google\Service\Calendar\Event;
-use Google\Service\Oauth2;
-use App\Models\User;
 use Illuminate\Support\Facades\Log;
 
 class GoogleCalendarService
 {
     protected $client;
+    protected $service;
+    protected $calendarId;
 
     public function __construct()
     {
-        $this->client = new Client();
-        $this->client->setClientId(config('services.google.client_id'));
-        $this->client->setClientSecret(config('services.google.client_secret'));
-        $this->client->setRedirectUri(config('services.google.redirect'));
-        $this->client->addScope(Calendar::CALENDAR);
-        $this->client->addScope(Calendar::CALENDAR_EVENTS);
-        $this->client->addScope('https://www.googleapis.com/auth/userinfo.profile');
-        $this->client->setAccessType('offline');
-        $this->client->setPrompt('consent');
-    }
+        $this->calendarId = env('GOOGLE_CALENDAR_ID');
+        $jsonPath = base_path(env('GOOGLE_SERVICE_ACCOUNT_JSON_PATH', 'storage/app/google/service-account.json'));
 
-    /**
-     * Get the Google Client instance.
-     */
-    public function getClient()
-    {
-        return $this->client;
-    }
-
-    /**
-     * Set access token for a user, refreshing if necessary.
-     */
-    public function setAccessTokenForUser(User $user)
-    {
-        if (!$user->google_token) {
-            return false;
+        if (!file_exists($jsonPath)) {
+            Log::warning("Google Service Account JSON file not found at: {$jsonPath}. Komponen Calendar akan melewati eksekusi.");
+            return;
         }
 
-        $this->client->setAccessToken($user->google_token);
+        try {
+            $this->client = new Client();
+            $this->client->setAuthConfig($jsonPath);
+            $this->client->addScope(Calendar::CALENDAR);
+            $this->client->setAccessType('offline');
 
-        if ($this->client->isAccessTokenExpired()) {
-            if ($user->google_refresh_token) {
-                $newToken = $this->client->fetchAccessTokenWithRefreshToken($user->google_refresh_token);
-                
-                if (isset($newToken['error'])) {
-                    Log::error('Google Token Refresh Error: ' . json_encode($newToken));
-                    return false;
-                }
-
-                $user->update([
-                    'google_token' => json_encode($newToken),
-                    'google_token_expires_at' => now()->addSeconds($newToken['expires_in']),
-                ]);
-            } else {
-                return false;
-            }
+            $this->service = new Calendar($this->client);
+        } catch (\Exception $e) {
+            Log::error("Gagal inisialisasi Google Calendar Client: " . $e->getMessage());
         }
-
-        return true;
     }
 
     /**
-     * Create a calendar event.
+     * Membuat atau memperbarui event pengingat di Google Calendar.
+     * 
+     * @param string $id Identifier unik untuk mencocokkan event (misal: ID Percakapan)
+     * @param string $title Judul event
+     * @param string $description Deskripsi event
+     * @param \DateTime $startTime Waktu mulai
+     * @param \DateTime $endTime Waktu selesai
+     * @return Event|null
      */
-    public function createEvent(User $user, $summary, $description, $startTime, $endTime)
+    public function createOrUpdateReminder($id, $title, $description, $startTime, $endTime)
     {
-        if (!$this->setAccessTokenForUser($user)) {
-            Log::warning("User {$user->id} has no valid Google Token.");
+        if (!$this->service) {
             return null;
         }
 
-        $service = new Calendar($this->client);
-
-        $event = new Event([
-            'summary' => $summary,
+        $eventData = [
+            'summary' => $title,
             'description' => $description,
             'start' => [
                 'dateTime' => $startTime->format(\DateTime::RFC3339),
-                'timeZone' => config('app.timezone'),
+                'timeZone' => config('app.timezone', 'UTC'),
             ],
             'end' => [
                 'dateTime' => $endTime->format(\DateTime::RFC3339),
-                'timeZone' => config('app.timezone'),
+                'timeZone' => config('app.timezone', 'UTC'),
             ],
-        ]);
-
-        $calendarId = 'primary';
-        try {
-            $event = $service->events->insert($calendarId, $event);
-            return $event->id; // Return ID instead of link for backend tracking
-        } catch (\Exception $e) {
-            Log::error('Google Calendar Event Creation Failed: ' . $e->getMessage());
-            return null;
-        }
-    }
-
-    /**
-     * Create a multi-day all-day calendar event.
-     * Cocok untuk pengingat yang berlangsung beberapa hari.
-     */
-    public function createMultiDayEvent(User $user, $summary, $description, $startDate, $endDate)
-    {
-        if (!$this->setAccessTokenForUser($user)) {
-            Log::warning("User {$user->id} has no valid Google Token.");
-            return null;
-        }
-
-        $service = new Calendar($this->client);
-
-        // All-day event menggunakan format 'date' (bukan 'dateTime')
-        $event = new Event([
-            'summary' => $summary,
-            'description' => $description,
-            'start' => [
-                'date' => $startDate->format('Y-m-d'),
-                'timeZone' => config('app.timezone'),
-            ],
-            'end' => [
-                'date' => $endDate->format('Y-m-d'),
-                'timeZone' => config('app.timezone'),
-            ],
-            'reminders' => [
-                'useDefault' => false,
-                'overrides' => [
-                    ['method' => 'popup', 'minutes' => 480],  // Reminder jam 08:00 pagi
-                    ['method' => 'popup', 'minutes' => 0],    // Reminder saat event dimulai
+            'extendedProperties' => [
+                'private' => [
+                    'eduforum_id' => (string)$id,
                 ],
             ],
-        ]);
-
-        $calendarId = 'primary';
-        try {
-            $event = $service->events->insert($calendarId, $event);
-            Log::info("Multi-day calendar event created: {$event->id} ({$startDate->format('Y-m-d')} to {$endDate->format('Y-m-d')})");
-            return $event->id;
-        } catch (\Exception $e) {
-            Log::error('Google Calendar Multi-Day Event Creation Failed: ' . $e->getMessage());
-            return null;
-        }
-    }
-
-    /**
-     * Update an existing calendar event.
-     *
-     * For all-day reminder events, optional start/end date can be provided
-     * so the existing event is moved to a new date range.
-     */
-    public function updateEvent(User $user, $eventId, $summary, $description, $startDate = null, $endDate = null)
-    {
-        if (!$this->setAccessTokenForUser($user)) return null;
-
-        $service = new Calendar($this->client);
-        $calendarId = 'primary';
+        ];
 
         try {
-            $event = $service->events->get($calendarId, $eventId);
-            $event->setSummary($summary);
-            $event->setDescription($description);
+            // Mencari event yang sudah ada dengan ID unik eduforum_id
+            $events = $this->service->events->listEvents($this->calendarId, [
+                'privateExtendedProperty' => "eduforum_id=$id"
+            ]);
 
-            if ($startDate && $endDate) {
-                $event->setStart(new \Google\Service\Calendar\EventDateTime([
-                    'date' => $startDate->format('Y-m-d'),
-                    'timeZone' => config('app.timezone'),
-                ]));
-
-                $event->setEnd(new \Google\Service\Calendar\EventDateTime([
-                    'date' => $endDate->format('Y-m-d'),
-                    'timeZone' => config('app.timezone'),
-                ]));
+            if (count($events->getItems()) > 0) {
+                // Update event yang sudah ada
+                $existingEvent = $events->getItems()[0];
+                $event = new Event($eventData);
+                return $this->service->events->update($this->calendarId, $existingEvent->getId(), $event);
+            } else {
+                // Buat event baru
+                $event = new Event($eventData);
+                return $this->service->events->insert($this->calendarId, $event);
             }
-
-            $updatedEvent = $service->events->update($calendarId, $eventId, $event);
-            return $updatedEvent->id;
         } catch (\Exception $e) {
-            Log::error('Google Calendar Event Update Failed: ' . $e->getMessage());
+            Log::error("Kesalahan Google Calendar Service: " . $e->getMessage());
             return null;
-        }
-    }
-
-    /**
-     * Delete a calendar event.
-     */
-    public function deleteEvent(User $user, $eventId)
-    {
-        if (!$this->setAccessTokenForUser($user)) return false;
-
-        $service = new Calendar($this->client);
-        $calendarId = 'primary';
-
-        try {
-            $service->events->delete($calendarId, $eventId);
-            return true;
-        } catch (\Exception $e) {
-            Log::error('Google Calendar Event Deletion Failed: ' . $e->getMessage());
-            return false;
         }
     }
 }
